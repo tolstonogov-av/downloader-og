@@ -680,41 +680,32 @@ public class Parser {
 
     private int getGameFavorites(Document doc) {
         return Integer.parseInt(doc
-                .getElementById("maintable")
-                .child(0)
-                .child(0)
-                .child(1)
+                .getElementById("main")
                 .child(1)
                 .child(3)
                 .child(0)
                 .child(0)
-                .child(0).text());
+                .text());
     }
 
     private int getGameCompletions(Document doc) {
         return Integer.parseInt(doc
-                .getElementById("maintable")
-                .child(0)
-                .child(0)
-                .child(1)
+                .getElementById("main")
                 .child(1)
                 .child(3)
                 .child(0)
                 .child(1)
-                .child(0).text());
+                .text());
     }
 
     private int getGameBookmarks(Document doc) {
         return Integer.parseInt(doc
-                .getElementById("maintable")
-                .child(0)
-                .child(0)
-                .child(1)
+                .getElementById("main")
                 .child(1)
                 .child(3)
                 .child(0)
                 .child(2)
-                .child(0).text());
+                .text());
     }
 
     private Document getGamePage(int page) {
@@ -778,22 +769,16 @@ public class Parser {
 
     private String getGameName(Document doc) {
         return doc
-                .getElementById("maintable")
-                .child(0)
-                .child(0)
+                .getElementById("main")
                 .child(1)
                 .child(1)
-                .child(1)
-                .child(0).text();
+                .text();
     }
 
     private List<AltName> getGameAltNames(Document doc) {
         List<AltName> result = new ArrayList<>();
         Elements alt_names = doc
-                .getElementById("maintable")
-                .child(0)
-                .child(0)
-                .child(1)
+                .getElementById("main")
                 .child(1)
                 .child(1)
                 .getElementsByClass("game_alt_names");
@@ -818,10 +803,7 @@ public class Parser {
     private Element getGameAttribute(Document doc, String attr){
         Element result = null;
         Elements attrs = doc
-                .getElementById("maintable")
-                .child(0)
-                .child(0)
-                .child(1)
+                .getElementById("main")
                 .child(1)
                 .child(2)
                 .child(0)
@@ -838,6 +820,7 @@ public class Parser {
             String nameAttribute = hrefAttribute.substring(hrefAttribute.indexOf('?') + 1, hrefAttribute.indexOf('='));
             if (nameAttribute.equals(attr)) {
                 result = child;
+                break;
             }
         }
         return result;
@@ -895,7 +878,7 @@ public class Parser {
         String description;
         Elements properties;
         Element gameGroupsElement = doc
-                .getElementById("maintable")
+                .getElementById("main")
                 .child(0)
                 .child(0)
                 .child(1)
@@ -939,7 +922,7 @@ public class Parser {
 
     private String getGameReview(Document doc) {
         return doc
-                .getElementById("maintable")
+                .getElementById("main")
                 .child(0)
                 .child(0)
                 .child(1)
