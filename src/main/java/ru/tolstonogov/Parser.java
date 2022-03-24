@@ -145,14 +145,14 @@ public class Parser {
 //            } catch (IOException e) {
 //                LOG.error(e.getMessage(), e);
 //            }
-            String gameDirectoryName = new StringBuilder(game.getName())
-                    .append(" (")
-                    .append(game.getReleased())
-                    .append(", id_")
-                    .append(page)
-                    .append(")").toString();
-            LOG.info(new StringBuilder("+ ")
-                    .append(gameDirectoryName).toString());
+            String gameDirectoryName = game.getName() +
+                    " (" +
+                    game.getReleased() +
+                    ", id_" +
+                    page +
+                    ")";
+            LOG.info("+ " +
+                    gameDirectoryName);
             if (parentDirectory != null) {
                 // TODO: extra directory -> keep (for review), extra files - to remove (without copyright violation).
                 gameDirectory = new File(gamesDirectory, gameDirectoryName
@@ -366,12 +366,10 @@ public class Parser {
     }
 
     private String getApproxSizeInUnits(GameFl gameFl) {
-        return new StringBuilder(
-                BigDecimal.valueOf((float) gameFl.getApproxSize() / getSizeUnit(gameFl.getUnit()))
-                        .setScale(2, RoundingMode.HALF_UP).toString())
-                .append(" ")
-                .append(gameFl.getUnit().getName())
-                .toString();
+        return BigDecimal.valueOf((float) gameFl.getApproxSize() / getSizeUnit(gameFl.getUnit()))
+                .setScale(2, RoundingMode.HALF_UP) +
+                " " +
+                gameFl.getUnit().getName();
     }
 
     private long getSizeUnit(Unit unit) {
@@ -529,19 +527,14 @@ public class Parser {
         List<GameFl> result = new ArrayList<>();
         Document docDl = getGameFilesPage(page);
 //        TODO: java.lang.NullPointerException. Already handled, need to remove "errorAccess".
-        boolean errorAccess = docDl.getElementById("maintable") == null;
+        boolean errorAccess = docDl.getElementById("main") == null;
         if (errorAccess) {
             LOG.error(new StringBuilder(this.baseUrl).append("game/download/")
                     .append(page).append(".html isn't accessible."));
         }
         Elements files = docDl
-                .getElementById("maintable")
-                .child(0)
-                .child(0)
-                .child(1)
-                .child(3)
-                .getElementsByClass("gamefiles-line").get(0)
-                .child(0)
+                .getElementsByClass("game_downloads_container")
+                .get(0)
                 .children();
         FileType fileType;
         String fileLink;
@@ -558,7 +551,11 @@ public class Parser {
         Elements groups;
         String description;
         for (Element file : files) {
-            groups = file.child(1).child(2).children();
+            groups = file
+                    .child(1)
+                    .child(0)
+                    .child(4)
+                    .children();
             List<FileProperty> fileProperties = new ArrayList<>();
             if (groups.size() > 1) {
                 FileGroupProperties groupName;
@@ -579,7 +576,7 @@ public class Parser {
             }
             fileType = new FileType(file
                     .child(0)
-                    .child(0).text());
+                    .text());
             fileDlText = file
                     .child(1)
                     .child(0)
@@ -600,7 +597,8 @@ public class Parser {
             fileDateText = fileDlText[4].substring(0, 10);
             fileDesc = file
                     .child(1)
-                    .child(1)
+                    .child(0)
+                    .child(3)
                     .html();
             if (file.children().size() > 2) {
                 fileProvided = file.child(2).child(2).text();
@@ -611,14 +609,12 @@ public class Parser {
                     .child(1)
                     .child(0)
                     .child(0)
-                    .child(0)
                     .attr("href");
             copyrightViolation = specifyFileLink.isEmpty();
             if (!copyrightViolation) {
-                fileLink = new StringBuilder(this.baseUrl)
-                        .append("game/download/")
-                        .append(specifyFileLink)
-                        .toString();
+                fileLink = this.baseUrl +
+                        "game/download/" +
+                        specifyFileLink;
                 fileTempLink = getFileTempLink(fileLink, "");
                 fileName = fileTempLink.substring(fileTempLink.lastIndexOf('/') + 1);
             } else {
@@ -646,17 +642,12 @@ public class Parser {
         List<Screenshot> result = new ArrayList<>();
         Document docScrn = getGameSreenshotsPage(page);
 //        TODO: java.lang.NullPointerException. Already handled, need to remove "errorAccess".
-        boolean errorAccess = docScrn.getElementById("maintable") == null;
+        boolean errorAccess = docScrn.getElementById("main") == null;
         if (errorAccess) {
             LOG.error(new StringBuilder(this.baseUrl).append("game/screenshots/")
                     .append(page).append(".html isn't accessible."));
         }
         Elements screenshots = docScrn
-                .getElementById("maintable")
-                .child(0)
-                .child(0)
-                .child(1)
-                .child(3)
                 .getElementsByClass("game_screen_container middlesmall");
         String screenLink;
         int screenNn = 0;
@@ -714,7 +705,7 @@ public class Parser {
 //        TODO: include timeout.
         while (result == null) {
             try {
-                result = Jsoup.connect(new StringBuilder(this.baseUrl).append("game/").append(page).append(".html").toString()).get();
+                result = Jsoup.connect(this.baseUrl + "game/" + page + ".html").get();
             } catch (UnknownHostException e) {
                 if (!message) {
                     LOG.info(new StringBuilder("Game with page ").append(page).append(" isn't available. Access attempt now."));
@@ -735,8 +726,8 @@ public class Parser {
 //        TODO: include timeout.
         while (result == null) {
             try {
-                result = Jsoup.connect(new StringBuilder(this.baseUrl).append("game/download/")
-                        .append(page).append(".html").toString()).get();
+                result = Jsoup.connect(this.baseUrl + "game/download/" +
+                        page + ".html").get();
             } catch (IOException e) {
                 if (!message) {
                     LOG.info(new StringBuilder("Files with page ")
@@ -754,8 +745,8 @@ public class Parser {
 //        TODO: include timeout.
         while (result == null) {
             try {
-                result = Jsoup.connect(new StringBuilder(this.baseUrl).append("game/screenshots/")
-                        .append(page).append(".html").toString()).get();
+                result = Jsoup.connect(this.baseUrl + "game/screenshots/" +
+                        page + ".html").get();
             } catch (IOException e) {
                 if (!message) {
                     LOG.info(new StringBuilder("Screenshots with page ")
@@ -772,6 +763,8 @@ public class Parser {
                 .getElementById("main")
                 .child(1)
                 .child(1)
+                .getElementsByClass("game_title")
+                .get(0)
                 .text();
     }
 
@@ -877,21 +870,8 @@ public class Parser {
         String propertyName;
         String description;
         Elements properties;
-        Element gameGroupsElement = doc
-                .getElementById("main")
-                .child(0)
-                .child(0)
-                .child(1)
-                .child(3)
-                .child(0)
-                .child(0)
-                .child(0)
-                .child(0)
-                .child(0)
-                .child(1);
-        if (gameGroupsElement.children().size() > 3) {
-            Elements groups = gameGroupsElement
-                    .child(3)
+        if (doc.getElementsByClass("game-groups").size() > 0) {
+            Elements groups = doc
                     .getElementsByClass("game-groups").get(0)
                     .children();
             for (Element group : groups) {
@@ -923,13 +903,7 @@ public class Parser {
     private String getGameReview(Document doc) {
         return doc
                 .getElementById("main")
-                .child(0)
-                .child(0)
-                .child(1)
                 .child(3)
-                .child(0)
-                .child(0)
-                .child(0)
                 .child(0)
                 .child(0)
                 .child(1)
