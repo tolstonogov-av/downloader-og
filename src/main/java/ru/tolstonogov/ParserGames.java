@@ -13,8 +13,9 @@ public class ParserGames {
     private static final String KEY_LOAD = "l=";
     private static final String KEY_RANGE_BEGIN = "rb=";
     private static final String KEY_RANGE_END = "re=";
+    private static final String DEFAULT_LOAD = "./";
     private static final String DEFAULT_RANGE_BEGIN = "0";
-    private static final String DEFAULT_RANGE_END = "10900";
+    private static final String DEFAULT_RANGE_END = "12300";
     private static final String BASE_URL = "https://www.old-games.ru/";
     private static final String NAME_OG = "Old-Games.RU";
     private static final String NAME_OG_WASTED = "Old-Games.RU_wasted";
@@ -52,7 +53,11 @@ public class ParserGames {
             } else if (arg.startsWith(KEY_RANGE_END)) {
                 rangeEnd = arg.substring(KEY_RANGE_END.length());
             } else if (arg.startsWith(KEY_LOAD)) {
-                parentDirectory = new File(arg.substring(KEY_LOAD.length()));
+                if (arg.substring(KEY_LOAD.length()).length() > 0) {
+                    parentDirectory = new File(arg.substring(KEY_LOAD.length()));
+                } else {
+                    parentDirectory = new File(DEFAULT_LOAD);
+                }
                 try {
                     if (!parentDirectory.isDirectory()) {
                         LOG.error(new StringBuilder("Directory ").append(parentDirectory.getCanonicalPath()).append(" is not directory."));
