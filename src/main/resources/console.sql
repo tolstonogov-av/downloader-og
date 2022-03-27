@@ -64,6 +64,13 @@ from games_screenshots gs
          left outer join games g on gs.id_game = g.id
 ;
 
+select sum(gf.size) / 1024 / 1024,
+       count(1),
+       max(gf.size)
+from games_files gf
+         left outer join games g on gf.id_game = g.id
+;
+
 select gw.link_id  as "link_id",
        gw.name     as "name",
        gw.released as "released"
@@ -79,7 +86,7 @@ from games_saved gw
 select g.link_id                                                as "link_id",
        '=ГИПЕРССЫЛКА(I' || row_number() over (order by link_id desc) + 1 || ';' || 'H' ||
        row_number() over (order by link_id desc) + 1 || ')'        as "hyper",
-       g.released                                               as "released",
+        g.released                                               as "released",
        case
            when g.wasted then '*'
            else ''
