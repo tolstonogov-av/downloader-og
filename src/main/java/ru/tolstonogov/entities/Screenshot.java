@@ -2,7 +2,7 @@ package ru.tolstonogov.entities;
 
 import java.util.Objects;
 
-public class Screenshot {
+public class Screenshot implements Filable {
     private final int nn;
 
     private final String provided;
@@ -48,6 +48,7 @@ public class Screenshot {
         this.size = size;
     }
 
+    @Override
     public String getName() {
         return link.substring(link.lastIndexOf('/') + 1);
     }

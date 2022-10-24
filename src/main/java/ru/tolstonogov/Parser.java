@@ -22,10 +22,9 @@ import java.net.URL;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.GregorianCalendar;
-import java.util.List;
+import java.nio.file.StandardCopyOption;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 import static java.lang.Math.abs;
 
@@ -65,7 +64,7 @@ public class Parser {
         this.dbV = dbV;
     }
 
-    public void parse(int rangeBegin, int rangeEnd, File parentDirectory, String nameOg, String nameOgWasted) {
+    public void parse(int rangeBegin, int rangeEnd, File parentDirectory, String nameOg, String nameOgWasted, String nameOgUnrelated, boolean clean, String nameOgCleaned) {
         long startGamesDownload = System.currentTimeMillis();
         long gamesDownloadSize = 0;
         long finishGamesDownload;
@@ -82,17 +81,28 @@ public class Parser {
         File gameDirectory;
         File gamesWastedDirectory = null;
         File gameWastedDirectory;
+        File gamesUnrelatedDirectory = null;
+        File gamesCleanedDirectory = null;
         boolean proper = true;
         int page = 0;
+        List<String> gamesDirectoryName = new ArrayList<>();
         if (parentDirectory != null) {
             gamesDirectory = new File(parentDirectory, nameOg);
             gamesWastedDirectory = new File(parentDirectory, nameOgWasted);
+            gamesUnrelatedDirectory = new File(parentDirectory, nameOgUnrelated);
+            gamesCleanedDirectory = new File(parentDirectory, new StringBuilder(nameOgCleaned).append("(").append(rangeBegin).append("-").append(rangeEnd).append(")").toString());
             try {
                 if (!gamesDirectory.exists() && !gamesDirectory.mkdir()) {
                     LOG.error(new StringBuilder("Directory ").append(gamesDirectory.getCanonicalPath()).append(" doesn't created."));
                 }
                 if (!gamesWastedDirectory.exists() && !gamesWastedDirectory.mkdir()) {
                     LOG.error(new StringBuilder("Directory ").append(gamesWastedDirectory.getCanonicalPath()).append(" doesn't created."));
+                }
+                if (!gamesUnrelatedDirectory.exists() && !gamesUnrelatedDirectory.mkdir()) {
+                    LOG.error(new StringBuilder("Directory ").append(gamesUnrelatedDirectory.getCanonicalPath()).append(" doesn't created."));
+                }
+                if (!gamesCleanedDirectory.exists() && !gamesCleanedDirectory.mkdir()) {
+                    LOG.error(new StringBuilder("Directory ").append(gamesCleanedDirectory.getCanonicalPath()).append(" doesn't created."));
                 }
             } catch (IOException e) {
                 LOG.error(e.getMessage());
@@ -173,7 +183,7 @@ public class Parser {
                     }
                     filesDownloadSize = 0;
                 } else {
-                    filesDownloadSize = downloadFiles(game, gameDirectory);
+                    filesDownloadSize = downloadFiles(game, gameDirectory, gamesUnrelatedDirectory, gameDirectoryName);
                 }
                 gamesDownloadSize += filesDownloadSize;
                 finishFilesDownload = System.currentTimeMillis();
@@ -193,7 +203,7 @@ public class Parser {
                 if (game.isWasted()) {
                     screenshotsDownloadSize = 0;
                 } else {
-                    screenshotsDownloadSize = downloadScreenshots(game.getScreenshots(), parentDirectory, nameOg, gameDirectoryName, gameDirectory);
+                    screenshotsDownloadSize = downloadScreenshots(game.getScreenshots(), parentDirectory, nameOg, gameDirectoryName, gameDirectory, gamesUnrelatedDirectory);
                 }
                 gamesDownloadSize += screenshotsDownloadSize;
                 finishScreenshotsDownload = System.currentTimeMillis();
@@ -209,6 +219,9 @@ public class Parser {
                             .append(BigDecimal.valueOf(screenshotsDownloadSpeed).setScale(2, RoundingMode.HALF_UP))
                             .append(" Mb/sec."));
                 }
+            }
+            if (!game.isWasted()) {
+                gamesDirectoryName.add(gameDirectoryName);
             }
             // TODO: whether need add to DB wasted game?
             int idGenre = dbV.addGenre(game.getGenre());
@@ -258,9 +271,64 @@ public class Parser {
                     .append(BigDecimal.valueOf(gamesDownloadSpeed).setScale(2, RoundingMode.HALF_UP))
                     .append(" Mb/sec."));
         }
+        if (clean) {
+            LOG.info(new StringBuilder("games clean start."));
+            long startCleanTime = System.currentTimeMillis();
+            cleanGames(gamesDirectory, gamesCleanedDirectory, gamesDirectoryName);
+            long cleanTime = System.currentTimeMillis() - startCleanTime;
+            long hours = TimeUnit.MILLISECONDS.toHours(cleanTime);
+            long minutes = TimeUnit.MILLISECONDS.toMinutes(cleanTime);
+            long seconds = TimeUnit.MILLISECONDS.toSeconds(cleanTime);
+            LOG.info(new StringBuilder("games clean finish, time - ")
+                    .append(hours).append("h ")
+                    .append(minutes).append("m ")
+                    .append(seconds).append("s."));
+        }
     }
 
-    private long downloadFiles(Game game, File gameDirectory) {
+    private void cleanGames(File gamesDirectory, File gamesCleanedDirectory, List<String> gamesNamesDownloaded) {
+        File[] files = gamesDirectory.listFiles(File::isFile);
+        File fileToClean;
+        if (files != null) {
+            for (File f : files) {
+                fileToClean = new File(gamesCleanedDirectory, f.getName());
+                if (fileToClean.exists()) {
+                    fileToClean.delete();
+                }
+                try {
+                    Files.move(f.toPath(), fileToClean.toPath());
+                    LOG.info(new StringBuilder("\t")
+                            .append("- file \"")
+                            .append(f.getName())
+                            .append("\" cleaned"));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        files = gamesDirectory.listFiles(File::isDirectory);
+        if (files != null) {
+            for (File f : files) {
+                if (checkGameForClean(f, gamesNamesDownloaded)) {
+                    fileToClean = new File(gamesCleanedDirectory, f.getName());
+                    if (fileToClean.exists()) {
+                        delDirectory(fileToClean);
+                    }
+                    try {
+                        Files.move(f.toPath(), fileToClean.toPath());
+                        LOG.info(new StringBuilder("\t")
+                                .append("- directory \"")
+                                .append(f.getName())
+                                .append("\" cleaned"));
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+    }
+
+    private long downloadFiles(Game game, File gameDirectory, File gamesUnrelatedDirectory, String gameDirectoryName) {
         List<GameFl> files = game.getFiles();
         File filesDirectory = new File(gameDirectory, FILES_DIRECTORY_NAME);
         // TODO: gameDirectory.mkdir() move out of the method.
@@ -327,10 +395,107 @@ public class Parser {
                             .setScale(2, RoundingMode.HALF_UP))
                     .append(" Mb/sec."));
         }
+        moveUnrelatedFiles(gamesUnrelatedDirectory, gameDirectoryName, files, filesDirectory);
         return gameDownloadSize;
     }
 
-    private long downloadScreenshots(List<Screenshot> screenshots, File parentDirectory, String nameOg, String gameDirectoryName, File gameDirectory) {
+    private void moveUnrelatedFiles(File gamesUnrelatedDirectory, String gameDirectoryName, List<GameFl> files, File filesDirectory) {
+        File[] filesDownloaded = filesDirectory.listFiles();
+        List<File> filesUnrelated = new ArrayList<>();
+        if (filesDownloaded != null) {
+            for (File fl : filesDownloaded) {
+                if (checkFileForUnrelated(fl, files)) {
+                    filesUnrelated.add(fl);
+                }
+            }
+        }
+        if (!filesUnrelated.isEmpty()) {
+            File gameUnrelatedDirectory = new File(gamesUnrelatedDirectory, gameDirectoryName
+                    .replaceAll("[:/*?\"]", ""));
+            File filesUnrelatedDirectory = new File(gameUnrelatedDirectory, FILES_DIRECTORY_NAME);
+            try {
+                if (!gameUnrelatedDirectory.exists()) {
+                    if (!gameUnrelatedDirectory.mkdir()) {
+                        LOG.error(new StringBuilder("Directory ").append(gameUnrelatedDirectory.getCanonicalPath()).append(" doesn't created."));
+                    }
+                }
+                if (!filesUnrelatedDirectory.exists() && !filesUnrelatedDirectory.mkdir()) {
+                    LOG.error(new StringBuilder("Directory ").append(filesUnrelatedDirectory.getCanonicalPath()).append(" doesn't created."));
+                }
+            } catch (IOException e) {
+                LOG.error(e.getMessage());
+            }
+            File file;
+            for (File fl : filesUnrelated) {
+                file = new File(filesUnrelatedDirectory, fl.getName());
+                try {
+                    Files.move(fl.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                    LOG.info(new StringBuilder("\t")
+                            .append("- file: ")
+                            .append(fl.getName())
+                            .append(" is related, moved"));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    private void moveUnrelatedScreenshots(File gamesUnrelatedDirectory, String gameDirectoryName, List<Screenshot> screenshots, File screenshotDirectory) {
+        File[] screenshotsDownloaded = screenshotDirectory.listFiles();
+        List<File> screenshotsUnrelated = new ArrayList<>();
+        if (screenshotsDownloaded != null) {
+            for (File ss : screenshotsDownloaded) {
+                if (checkScreenshotForUnrelated(ss, screenshots)) {
+                    screenshotsUnrelated.add(ss);
+                }
+            }
+        }
+        if (!screenshotsUnrelated.isEmpty()) {
+            File gameUnrelatedDirectory = new File(gamesUnrelatedDirectory, gameDirectoryName
+                    .replaceAll("[:/*?\"]", ""));
+            File screenshotsUnrelatedDirectory = new File(gameUnrelatedDirectory, SCREENSHOTS_DIRECTORY_NAME);
+            try {
+                if (!gameUnrelatedDirectory.exists()) {
+                    if (!gameUnrelatedDirectory.mkdir()) {
+                        LOG.error(new StringBuilder("Directory ").append(gameUnrelatedDirectory.getCanonicalPath()).append(" doesn't created."));
+                    }
+                }
+                if (!screenshotsUnrelatedDirectory.exists() && !screenshotsUnrelatedDirectory.mkdir()) {
+                    LOG.error(new StringBuilder("Directory ").append(screenshotsUnrelatedDirectory.getCanonicalPath()).append(" doesn't created."));
+                }
+            } catch (IOException e) {
+                LOG.error(e.getMessage());
+            }
+            File screenshot;
+            for (File ss : screenshotsUnrelated) {
+                screenshot = new File(screenshotsUnrelatedDirectory, ss.getName());
+                try {
+                    Files.move(ss.toPath(), screenshot.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                    LOG.info(new StringBuilder("\t")
+                            .append("- screenshot: ")
+                            .append(ss.getName())
+                            .append(" is related, moved"));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    private boolean checkGameForClean(File game, List<String> gamesNames) {
+        return gamesNames.stream().noneMatch(f -> f.equals(game.getName()));
+    }
+
+    private boolean checkFileForUnrelated(File fl, List<GameFl> files) {
+        return files.stream().map(GameFl::getName).noneMatch(f -> f.equals(fl.getName()));
+    }
+
+    private boolean checkScreenshotForUnrelated(File fl, List<Screenshot> files) {
+        return files.stream().map(Screenshot::getName).noneMatch(f -> f.equals(fl.getName()));
+    }
+
+    private long downloadScreenshots(List<Screenshot> screenshots, File parentDirectory, String nameOg, String gameDirectoryName, File gameDirectory, File gamesUnrelatedDirectory) {
         File screenshotsDirectory = new File(gameDirectory, SCREENSHOTS_DIRECTORY_NAME);
         try {
             if (!screenshotsDirectory.exists() && !screenshotsDirectory.mkdir()) {
@@ -362,6 +527,7 @@ public class Parser {
                     .append(" B)"));
             screenshotsDownloadSize += gameScrn.getSize();
         }
+        moveUnrelatedScreenshots(gamesUnrelatedDirectory, gameDirectoryName, screenshots, screenshotsDirectory);
         return screenshotsDownloadSize;
     }
 

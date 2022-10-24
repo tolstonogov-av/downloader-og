@@ -1,10 +1,12 @@
 package ru.tolstonogov.entities.file;
 
+import ru.tolstonogov.entities.Filable;
+
 import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.Objects;
 
-public class GameFl {
+public class GameFl implements Filable {
     private FileType type;
 
     private long approxSize;
@@ -77,6 +79,7 @@ public class GameFl {
         this.description = description;
     }
 
+    @Override
     public String getName() {
         String result;
         if (this.getLink() == null) {
