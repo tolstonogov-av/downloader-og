@@ -219,9 +219,9 @@ public class Parser {
                             .append(BigDecimal.valueOf(screenshotsDownloadSpeed).setScale(2, RoundingMode.HALF_UP))
                             .append(" Mb/sec."));
                 }
-            }
-            if (!game.isWasted()) {
-                gamesDirectoryName.add(gameDirectoryName);
+                if (!game.isWasted()) {
+                    gamesDirectoryName.add(gameDirectory.getName());
+                }
             }
             // TODO: whether need add to DB wasted game?
             int idGenre = dbV.addGenre(game.getGenre());
