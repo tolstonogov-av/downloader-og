@@ -628,10 +628,10 @@ public class Parser {
         try (BufferedInputStream in = new BufferedInputStream(new URL(fileTempLink.replaceAll(" ", "%20")).openStream());
              FileOutputStream out = new FileOutputStream(file)) {
             buffer = new byte[1024];
-// TODO: здесь зависает напрочь иногда
             bytes = in.read(buffer, 0, 1024);
             while (bytes != -1) {
                 out.write(buffer, 0, bytes);
+// TODO: здесь зависает напрочь иногда
                 bytes = in.read(buffer, 0, 1024);
             }
         } catch (IOException e) {
