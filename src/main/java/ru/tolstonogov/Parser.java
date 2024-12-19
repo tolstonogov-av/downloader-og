@@ -628,6 +628,7 @@ public class Parser {
         try (BufferedInputStream in = new BufferedInputStream(new URL(fileTempLink.replaceAll(" ", "%20")).openStream());
              FileOutputStream out = new FileOutputStream(file)) {
             buffer = new byte[1024];
+// TODO: здесь зависает напрочь иногда
             bytes = in.read(buffer, 0, 1024);
             while (bytes != -1) {
                 out.write(buffer, 0, bytes);
@@ -638,6 +639,12 @@ public class Parser {
             LOG.error(e.getClass().getName() + ": " + e.getMessage());
             gameFl.setCause_unload(e.getClass().getName());
         }
+//        TODO: для того, чтобы сэмулировать скачку, но без скачки
+//        long length = file.length();
+//        if (file.delete()) {
+//            LOG.info(new StringBuilder("\t\tfile delete successfully."));
+//        };
+//        return length;
         return file.length();
     }
 

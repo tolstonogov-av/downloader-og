@@ -16,7 +16,7 @@ public class ParserGames {
     private static final String KEY_CLEAN = "cl";
     private static final String DEFAULT_LOAD = "./";
     private static final String DEFAULT_RANGE_BEGIN = "0";
-    private static final String DEFAULT_RANGE_END = "12700";
+    private static final String DEFAULT_RANGE_END = "13400";
     private static final String BASE_URL = "https://www.old-games.ru/";
     private static final String NAME_OG = "Old-Games.RU";
     private static final String NAME_OG_WASTED = "Old-Games.RU_wasted";
