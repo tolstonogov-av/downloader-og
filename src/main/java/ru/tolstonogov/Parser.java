@@ -12,6 +12,7 @@ import ru.tolstonogov.entities.Screenshot;
 import ru.tolstonogov.entities.file.*;
 import ru.tolstonogov.entities.game.*;
 
+import javax.net.ssl.SSLHandshakeException;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -25,6 +26,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static java.lang.Math.abs;
 
@@ -389,10 +391,13 @@ public class Parser {
             finishFileDownload = System.currentTimeMillis();
             LOG.info(new StringBuilder("\t\t")
                     .append("file download speed - ")
-                    .append(BigDecimal.valueOf(
-                            ((float) gameFl.getSize() / SIZE_MB)
-                                    / ((float) (finishFileDownload - startFileDownload) / 1000))
-                            .setScale(2, RoundingMode.HALF_UP))
+                    .append(finishFileDownload != startFileDownload ?
+                            BigDecimal.valueOf(
+                                            ((float) gameFl.getSize() / SIZE_MB)
+                                                    / ((float) (finishFileDownload - startFileDownload) / 1000))
+                                    .setScale(2, RoundingMode.HALF_UP)
+                            :
+                            "-")
                     .append(" Mb/sec."));
         }
         moveUnrelatedFiles(gamesUnrelatedDirectory, gameDirectoryName, files, filesDirectory);
@@ -622,7 +627,12 @@ public class Parser {
     }
 
     private long downloadFile(File file, GameFl gameFl) {
-        String fileTempLink = getFileTempLink(gameFl.getLink(), "\t");
+//        TODO: для того, чтобы не скачивать большие файлы
+//        if (gameFl.getApproxSize() > 1024 * 1024) {
+//            LOG.info(new StringBuilder("\t\tfile too big (" + gameFl.getApproxSize() + ")."));
+//            return 1L;
+//        }
+        String fileTempLink = getFileTempLink(gameFl.getLink(), "\t").replaceAll(" ", "%20").replaceAll("’", "%E2%80%99");
         byte[] buffer;
         int bytes;
         try (BufferedInputStream in = new BufferedInputStream(new URL(fileTempLink.replaceAll(" ", "%20")).openStream());
@@ -634,6 +644,11 @@ public class Parser {
 // TODO: здесь зависает напрочь иногда
                 bytes = in.read(buffer, 0, 1024);
             }
+// TODO: сделать нормальную обработку исключений
+        } catch (SSLHandshakeException eSsl) {
+            // TODO: clear message.
+            LOG.error(eSsl.getClass().getName() + ": " + eSsl.getMessage());
+            gameFl.setCause_unload(eSsl.getClass().getName());
         } catch (IOException e) {
             // TODO: clear message.
             LOG.error(e.getClass().getName() + ": " + e.getMessage());
@@ -653,7 +668,7 @@ public class Parser {
         byte[] buffer;
         int bytes;
         try (BufferedInputStream in = new BufferedInputStream(
-                new URL(gameScrn.getLink().replaceAll(" ", "%20")).openStream());
+                new URL(gameScrn.getLink().replaceAll(" ", "%20").replaceAll("’", "%E2%80%99")).openStream());
              FileOutputStream out = new FileOutputStream(file)) {
             buffer = new byte[1024];
             bytes = in.read(buffer, 0, 1024);
@@ -672,9 +687,11 @@ public class Parser {
     private String getFileTempLink(String link, String tab) {
         String result;
         Document docFile = getGameFilePage(link, tab);
-        result = docFile
-                .getElementsByClass("gamelink").get(0)
-                .attr("href");
+        Elements gamelinks = docFile
+                .getElementsByClass("gamelink");
+        List<Element> elements = gamelinks
+                .stream().filter(e -> e.childNode(0).toString().contains("RU")).collect(Collectors.toList());
+        result = (elements.isEmpty() ? gamelinks : elements).get(0).attr("href");
         return result;
     }
 
