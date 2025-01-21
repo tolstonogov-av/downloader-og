@@ -340,10 +340,20 @@ public class Parser {
                     game.setCause_load(NOT_EXIST);
                 } else {
                     LOG.error(new StringBuilder("Directory ").append(gameDirectory.getCanonicalPath()).append(" doesn't created."));
+//      Если нет доступа к каталогу с игрой, то ждём
+                    boolean gameDirectoryIsMaked = false;
+                    while (!gameDirectoryIsMaked) {
+                        gameDirectoryIsMaked = gameDirectory.exists() || gameDirectory.mkdir();
+                    }
                 }
             }
             if (!filesDirectory.exists() && !filesDirectory.mkdir()) {
                 LOG.error(new StringBuilder("Directory ").append(filesDirectory.getCanonicalPath()).append(" doesn't created."));
+//      Если нет доступа к каталогу с файлами, то ждём
+                boolean filesDirectoryIsMaked = false;
+                while (!filesDirectoryIsMaked) {
+                    filesDirectoryIsMaked = filesDirectory.exists() || filesDirectory.mkdir();
+                }
             }
         } catch (IOException e) {
             LOG.error(e.getMessage());
@@ -639,10 +649,16 @@ public class Parser {
              FileOutputStream out = new FileOutputStream(file)) {
             buffer = new byte[1024];
             bytes = in.read(buffer, 0, 1024);
-            while (bytes != -1) {
-                out.write(buffer, 0, bytes);
+            boolean exceptionExist = false;
+            while (exceptionExist || bytes != -1) {
+                try {
+                    out.write(buffer, 0, bytes);
+                    exceptionExist = false;
 // TODO: здесь зависает напрочь иногда
-                bytes = in.read(buffer, 0, 1024);
+                    bytes = in.read(buffer, 0, 1024);
+                } catch (SSLHandshakeException eSsl) {
+                    exceptionExist = true;
+                }
             }
 // TODO: сделать нормальную обработку исключений
         } catch (SSLHandshakeException eSsl) {
@@ -650,6 +666,10 @@ public class Parser {
             LOG.error(eSsl.getClass().getName() + ": " + eSsl.getMessage());
             gameFl.setCause_unload(eSsl.getClass().getName());
         } catch (IOException e) {
+            // TODO: clear message.
+            LOG.error(e.getClass().getName() + ": " + e.getMessage());
+            gameFl.setCause_unload(e.getClass().getName());
+        } catch (Exception e) {
             // TODO: clear message.
             LOG.error(e.getClass().getName() + ": " + e.getMessage());
             gameFl.setCause_unload(e.getClass().getName());
