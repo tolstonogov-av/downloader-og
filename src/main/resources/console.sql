@@ -38,7 +38,9 @@ from games g
          left outer join games_files gf on g.id = gf.id_game
          left outer join types_files tf on gf.id_type = tf.id
 where gf.cause_unload != ''
+    and gf.cause_unload != 'only documents'
    or gf.cause_load != ''
+    and gf.cause_load != 'not exist'
 order by gf.date desc, g.id;
 
 select g.name,
