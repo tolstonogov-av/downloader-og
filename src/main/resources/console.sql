@@ -56,6 +56,7 @@ from games_screenshots gs
          left outer join games g on gs.id_game = g.id
 where gs.cause_unload != ''
    or gs.cause_load != ''
+    and gs.cause_load != 'not exist'
 order by g.link_id, gs.nn
 ;
 
